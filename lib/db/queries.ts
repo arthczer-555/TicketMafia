@@ -18,6 +18,7 @@ export type TicketRow = {
   slack_permalink: string | null;
   created_at: string;
   updated_at: string;
+  archived_at: string | null;
 };
 
 export type AttachmentRow = {
@@ -43,12 +44,24 @@ export type CommentRow = {
 
 export async function listTickets(opts: {
   category?: TicketCategory | "all";
+  range?: DashboardRange;
 } = {}): Promise<TicketRow[]> {
   const supabase = createServiceClient();
-  let query = supabase.from("tickets").select("*").order("created_at", { ascending: false });
+  let query = supabase
+    .from("tickets")
+    .select("*")
+    .is("archived_at", null)
+    .order("created_at", { ascending: false });
 
   if (opts.category && opts.category !== "all") {
     query = query.eq("category", opts.category);
+  }
+
+  const days = opts.range ? RANGE_DAYS[opts.range] : null;
+  if (days !== null) {
+    const since = new Date();
+    since.setUTCDate(since.getUTCDate() - days);
+    query = query.gte("created_at", since.toISOString());
   }
 
   const t0 = Date.now();
@@ -56,6 +69,21 @@ export async function listTickets(opts: {
   console.log(`[perf] listTickets supabase=${Date.now() - t0}ms`);
   if (error) {
     console.error("listTickets failed", error);
+    return [];
+  }
+  return (data ?? []) as TicketRow[];
+}
+
+export async function listArchivedTickets(): Promise<TicketRow[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("tickets")
+    .select("*")
+    .not("archived_at", "is", null)
+    .order("archived_at", { ascending: false });
+
+  if (error) {
+    console.error("listArchivedTickets failed", error);
     return [];
   }
   return (data ?? []) as TicketRow[];
@@ -123,7 +151,17 @@ export type OwnerStats = {
   completionPct: number;
 };
 
+export type DashboardRange = "7d" | "30d" | "90d" | "all";
+
+const RANGE_DAYS: Record<DashboardRange, number | null> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  all: null,
+};
+
 export type AdminDashboard = {
+  range: DashboardRange;
   global: {
     total: number;
     open: number;
@@ -183,21 +221,34 @@ function diffDays(fromIso: string, toIso: string): number {
   return Math.floor((b - a) / 86_400_000);
 }
 
-export async function getAdminDashboard(): Promise<AdminDashboard> {
+export async function getAdminDashboard(
+  opts: { range?: DashboardRange } = {}
+): Promise<AdminDashboard> {
   const supabase = createServiceClient();
+  const range: DashboardRange = opts.range ?? "all";
+  const days = RANGE_DAYS[range];
+
+  // Compute the lower bound for "in range" tickets. For "all", everything counts.
+  let sinceMs: number | null = null;
+  if (days !== null) {
+    const since = new Date();
+    since.setUTCDate(since.getUTCDate() - days);
+    sinceMs = since.getTime();
+  }
 
   const [ownersRes, ticketsRes] = await Promise.all([
     supabase.from("owners").select("name").order("name"),
     supabase
       .from("tickets")
-      .select("id, title, owner, status, category, deadline, created_at"),
+      .select("id, title, owner, status, category, deadline, created_at")
+      .is("archived_at", null),
   ]);
 
   if (ownersRes.error) console.error("getAdminDashboard owners failed", ownersRes.error);
   if (ticketsRes.error) console.error("getAdminDashboard tickets failed", ticketsRes.error);
 
   const ownerNames = (ownersRes.data ?? []).map((o) => o.name as string);
-  const tickets = (ticketsRes.data ?? []) as Array<{
+  const allTickets = (ticketsRes.data ?? []) as Array<{
     id: string;
     title: string;
     owner: string | null;
@@ -206,6 +257,13 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
     deadline: string | null;
     created_at: string;
   }>;
+
+  // Tickets in scope for KPIs / owners / oldest-open / overdue list.
+  // The weekly-created chart always uses ALL tickets so the trend stays stable.
+  const tickets =
+    sinceMs === null
+      ? allTickets
+      : allTickets.filter((t) => Date.parse(t.created_at) >= sinceMs);
 
   const buckets = new Map<string, OwnerStats>();
   for (const name of ownerNames) {
@@ -260,6 +318,16 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
   const overdueList: AdminDashboard["overdueList"] = [];
   const openTickets: typeof tickets = [];
 
+  // Weekly chart uses ALL tickets (range-independent trend).
+  for (const t of allTickets) {
+    const createdDay = t.created_at.slice(0, 10);
+    if (createdDay >= windowStart) {
+      const created = new Date(t.created_at);
+      const ws = isoDate(startOfWeekUTC(created));
+      if (weekBuckets.has(ws)) weekBuckets.set(ws, (weekBuckets.get(ws) ?? 0) + 1);
+    }
+  }
+
   for (const t of tickets) {
     const ownerKey = t.owner && buckets.has(t.owner) ? t.owner : UNASSIGNED_LABEL;
     const b = buckets.get(ownerKey)!;
@@ -271,13 +339,6 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
     global.byStatus[t.status] += 1;
     global.byCategory[t.category] += 1;
     if (t.status !== "done") global.open += 1;
-
-    const createdDay = t.created_at.slice(0, 10);
-    if (createdDay >= windowStart) {
-      const created = new Date(t.created_at);
-      const ws = isoDate(startOfWeekUTC(created));
-      if (weekBuckets.has(ws)) weekBuckets.set(ws, (weekBuckets.get(ws) ?? 0) + 1);
-    }
 
     if (t.deadline && t.deadline < today && t.status !== "done") {
       b.overdue += 1;
@@ -327,5 +388,5 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
     count: weekBuckets.get(key) ?? 0,
   }));
 
-  return { global, owners, weeklyCreated, oldestOpen, overdueList };
+  return { range, global, owners, weeklyCreated, oldestOpen, overdueList };
 }

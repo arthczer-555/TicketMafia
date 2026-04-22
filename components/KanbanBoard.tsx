@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useOptimistic, useState, useTransition } from "react";
 import { moveTicket } from "@/app/actions";
+import { ArchiveButton } from "@/components/ArchiveButton";
 import { CategoryBadge, STATUS_LABEL, STATUS_ORDER, StatusBadge } from "@/components/badges";
 import { DeleteTicketButton } from "@/components/DeleteTicketButton";
 import type { TicketRow } from "@/lib/db/queries";
@@ -118,6 +119,7 @@ export function KanbanBoard({ tickets }: { tickets: TicketRow[] }) {
                       </div>
                     </Link>
                     <DeleteTicketButton ticketId={t.id} ticketTitle={slackToPlainText(t.title)} />
+                    <ArchiveButton ticketId={t.id} archived={false} variant="card" />
                   </div>
                 );
               })

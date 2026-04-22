@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTicket, listOwners } from "@/lib/db/queries";
+import { ArchiveButton } from "@/components/ArchiveButton";
 import { CategoryBadge, StatusBadge } from "@/components/badges";
 import { CommentForm } from "@/components/CommentForm";
 import { DeleteTicketButton } from "@/components/DeleteTicketButton";
+import { ArchiveIcon } from "@/components/icons";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { TicketEditor } from "@/components/TicketEditor";
 import { TitleEditor } from "@/components/TitleEditor";
@@ -42,10 +44,22 @@ export default async function TicketDetailPage({
   return (
     <main className="mx-auto max-w-7xl px-6 py-4">
       <div className="mb-4">
-        <Link href="/" className="text-sm text-slate-500 hover:text-slate-700">
-          ← Tous les tickets
+        <Link
+          href={ticket.archived_at ? "/archive" : "/"}
+          className="text-sm text-slate-500 hover:text-slate-700"
+        >
+          ← {ticket.archived_at ? "Archive" : "Tous les tickets"}
         </Link>
       </div>
+
+      {ticket.archived_at && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
+          <ArchiveIcon className="h-4 w-4 shrink-0 text-slate-500" />
+          <span>
+            Ticket archivé le {formatDateTime(ticket.archived_at)}. Il n'apparaît plus dans le kanban ni le dashboard.
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* LEFT — contenu lisible */}
@@ -224,7 +238,12 @@ export default async function TicketDetailPage({
             <CommentForm ticketId={ticket.id} />
           </section>
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ArchiveButton
+              ticketId={ticket.id}
+              archived={!!ticket.archived_at}
+              redirectTo={ticket.archived_at ? "/archive" : "/"}
+            />
             <DeleteTicketButton
               ticketId={ticket.id}
               ticketTitle={slackToPlainText(ticket.title)}

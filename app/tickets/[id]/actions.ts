@@ -100,6 +100,52 @@ export async function deleteTicket(formData: FormData) {
   redirect(redirectTo);
 }
 
+export async function archiveTicket(formData: FormData) {
+  await requireAuth();
+  const id = String(formData.get("id") ?? "");
+  const redirectTo = String(formData.get("redirect_to") ?? "");
+  if (!id) return;
+
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("tickets")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) {
+    console.error("archiveTicket failed", error);
+    return;
+  }
+
+  revalidatePath("/");
+  revalidatePath("/archive");
+  revalidatePath(`/tickets/${id}`);
+  if (redirectTo) redirect(redirectTo);
+}
+
+export async function unarchiveTicket(formData: FormData) {
+  await requireAuth();
+  const id = String(formData.get("id") ?? "");
+  const redirectTo = String(formData.get("redirect_to") ?? "");
+  if (!id) return;
+
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("tickets")
+    .update({ archived_at: null })
+    .eq("id", id);
+
+  if (error) {
+    console.error("unarchiveTicket failed", error);
+    return;
+  }
+
+  revalidatePath("/");
+  revalidatePath("/archive");
+  revalidatePath(`/tickets/${id}`);
+  if (redirectTo) redirect(redirectTo);
+}
+
 export async function deleteComment(formData: FormData) {
   await requireAuth();
 

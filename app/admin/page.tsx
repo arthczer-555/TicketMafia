@@ -1,9 +1,27 @@
 import Link from "next/link";
-import { getAdminDashboard } from "@/lib/db/queries";
+import { getAdminDashboard, type DashboardRange } from "@/lib/db/queries";
 import { CategoryBadge, STATUS_LABEL, STATUS_ORDER, StatusBadge } from "@/components/badges";
 import { OwnerBars, StatusDonut, WeeklyBars } from "@/components/AdminCharts";
 import { slackToPlainText } from "@/lib/slack/text";
 import type { TicketCategory, TicketStatus } from "@/lib/slack/types";
+
+const RANGE_FILTERS: { key: DashboardRange; label: string }[] = [
+  { key: "7d", label: "7 jours" },
+  { key: "30d", label: "30 jours" },
+  { key: "90d", label: "90 jours" },
+  { key: "all", label: "Tout" },
+];
+
+const RANGE_LABEL: Record<DashboardRange, string> = {
+  "7d": "des 7 derniers jours",
+  "30d": "des 30 derniers jours",
+  "90d": "des 90 derniers jours",
+  all: "depuis le début",
+};
+
+function isRange(v: unknown): v is DashboardRange {
+  return v === "7d" || v === "30d" || v === "90d" || v === "all";
+}
 
 export const dynamic = "force-dynamic";
 
@@ -123,8 +141,15 @@ function NumCell({ n, muteZero = true }: { n: number; muteZero?: boolean }) {
   );
 }
 
-export default async function AdminPage() {
-  const data = await getAdminDashboard();
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const { range: rangeParam } = await searchParams;
+  const range: DashboardRange = isRange(rangeParam) ? rangeParam : "all";
+
+  const data = await getAdminDashboard({ range });
   const { global, owners, weeklyCreated, oldestOpen, overdueList } = data;
 
   return (
@@ -138,13 +163,36 @@ export default async function AdminPage() {
         </span>
       </div>
 
-      <h1 className="mb-1 text-2xl font-semibold">Admin — Dashboard</h1>
-      <p className="mb-6 text-sm text-slate-500">
-        Vue d'ensemble des tickets, par owner et sur le temps.
-      </p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="mb-1 text-2xl font-semibold">Admin — Dashboard</h1>
+          <p className="text-sm text-slate-500">
+            Vue d'ensemble des tickets, par owner et sur le temps.
+          </p>
+        </div>
+        <nav className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1">
+          {RANGE_FILTERS.map((f) => (
+            <Link
+              key={f.key}
+              href={f.key === "all" ? "/admin" : `/admin?range=${f.key}`}
+              className={`rounded px-3 py-1 text-sm transition ${
+                range === f.key
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {f.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label="Total tickets" value={global.total} hint={`${owners.length - 1} owners`} />
+        <KpiCard
+          label="Total tickets"
+          value={global.total}
+          hint={RANGE_LABEL[range]}
+        />
         <KpiCard
           label="Ouverts"
           value={global.open}
