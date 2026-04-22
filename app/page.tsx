@@ -1,22 +1,80 @@
+import Link from "next/link";
+import { listTickets } from "@/lib/db/queries";
+import { KanbanBoard } from "@/components/KanbanBoard";
+import { STATUS_LABEL, STATUS_ORDER } from "@/components/badges";
+import type { TicketCategory, TicketStatus } from "@/lib/slack/types";
 import { signOut } from "./login/actions";
 
-export default async function HomePage() {
+const CATEGORY_FILTERS: { key: "all" | TicketCategory; label: string }[] = [
+  { key: "all", label: "Tous" },
+  { key: "bugs", label: "Bugs" },
+  { key: "features", label: "Features" },
+];
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
+  const { category: categoryParam } = await searchParams;
+  const category: "all" | TicketCategory =
+    categoryParam === "bugs" || categoryParam === "features" ? categoryParam : "all";
+
+  const tickets = await listTickets({ category });
+  const counts: Record<TicketStatus, number> = { todo: 0, doing: 0, waiting: 0, done: 0 };
+  for (const t of tickets) counts[t.status]++;
+
   return (
-    <main className="mx-auto max-w-5xl p-8">
-      <header className="mb-8 flex items-center justify-between">
+    <main className="mx-auto max-w-7xl p-6">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">TicketMafia</h1>
-        <form action={signOut}>
-          <button className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100">
-            Déconnexion
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          <nav className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1">
+            {CATEGORY_FILTERS.map((f) => (
+              <Link
+                key={f.key}
+                href={f.key === "all" ? "/" : `/?category=${f.key}`}
+                className={`rounded px-3 py-1 text-sm transition ${
+                  category === f.key
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {f.label}
+              </Link>
+            ))}
+          </nav>
+          <Link
+            href="/settings"
+            className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+          >
+            Settings
+          </Link>
+          <form action={signOut}>
+            <button className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100">
+              Déconnexion
+            </button>
+          </form>
+        </div>
       </header>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-6">
-        <p className="text-slate-700">
-          Projet en cours de setup. Les tickets apparaîtront ici une fois la synchro Slack branchée.
-        </p>
-      </section>
+      {tickets.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
+          <p className="text-slate-600">
+            Aucun ticket pour le moment. Envoie un message dans
+            {" #00-bugs-and-changes "}
+            ou{" #01-features-and-ideation "}
+            pour en créer.
+          </p>
+        </div>
+      ) : (
+        <KanbanBoard tickets={tickets} />
+      )}
+
+      <p className="mt-6 text-xs text-slate-400">
+        {tickets.length} ticket{tickets.length > 1 ? "s" : ""} —{" "}
+        {STATUS_ORDER.map((s) => `${STATUS_LABEL[s]}: ${counts[s]}`).join(" · ")}
+      </p>
     </main>
   );
 }

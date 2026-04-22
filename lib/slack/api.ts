@@ -63,3 +63,27 @@ export async function getChannelName(channel: string): Promise<string | null> {
     return null;
   }
 }
+
+// Rewrites <@U123> → <@U123|Display Name> so the mrkdwn renderer can show a
+// human-readable label. Slack's own UI does this client-side; we bake it into
+// the stored body because we don't keep a user directory locally.
+export async function resolveMentions(text: string): Promise<string> {
+  if (!text) return text;
+  const ids = Array.from(
+    new Set(Array.from(text.matchAll(/<@([UW][A-Z0-9]+)>/g), (m) => m[1]))
+  );
+  if (ids.length === 0) return text;
+
+  const names = new Map<string, string>();
+  await Promise.all(
+    ids.map(async (id) => {
+      const info = await getUserInfo(id);
+      if (info.name) names.set(id, info.name);
+    })
+  );
+
+  return text.replace(/<@([UW][A-Z0-9]+)>/g, (raw, id) => {
+    const name = names.get(id);
+    return name ? `<@${id}|${name}>` : raw;
+  });
+}

@@ -1,8 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { APP_USERS, isAppUser, type AppUser } from "./users";
 
-export const APP_USERS = ["gaspard", "arthur"] as const;
-export type AppUser = (typeof APP_USERS)[number];
+export { APP_USERS, isAppUser };
+export type { AppUser };
 
 const SESSION_COOKIE = "tm_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -16,10 +17,6 @@ function appPassword(): string {
 function sessionToken(): string {
   const pwd = appPassword();
   return createHmac("sha256", pwd).update("tm-session-v1").digest("hex");
-}
-
-export function isAppUser(value: unknown): value is AppUser {
-  return typeof value === "string" && (APP_USERS as readonly string[]).includes(value);
 }
 
 export function checkPassword(input: string): boolean {

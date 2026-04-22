@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { getChannelName, getPermalink, getUserInfo } from "./api";
+import { getChannelName, getPermalink, getUserInfo, resolveMentions } from "./api";
 import {
   STATUS_EMOJIS,
   categoryForChannel,
@@ -51,13 +51,14 @@ async function ingestTopLevelMessage(
   event: SlackMessageEvent,
   category: "bugs" | "features"
 ): Promise<void> {
-  const text = event.text ?? "";
+  const rawText = event.text ?? "";
   const supabase = createServiceClient();
 
-  const [author, permalink, channelName] = await Promise.all([
+  const [author, permalink, channelName, text] = await Promise.all([
     event.user ? getUserInfo(event.user) : Promise.resolve(null),
     getPermalink(event.channel, event.ts),
     getChannelName(event.channel),
+    resolveMentions(rawText),
   ]);
 
   const { data: ticket, error } = await supabase
@@ -117,7 +118,10 @@ async function ingestThreadReply(event: SlackMessageEvent): Promise<void> {
 
   if (!parent) return;
 
-  const author = event.user ? await getUserInfo(event.user) : null;
+  const [author, body] = await Promise.all([
+    event.user ? getUserInfo(event.user) : Promise.resolve(null),
+    resolveMentions(event.text ?? ""),
+  ]);
 
   const { error } = await supabase.from("ticket_comments").upsert(
     {
@@ -127,7 +131,7 @@ async function ingestThreadReply(event: SlackMessageEvent): Promise<void> {
       slack_user_id: event.user ?? null,
       author_name: author?.name ?? null,
       author_avatar: author?.avatar ?? null,
-      body: event.text ?? "",
+      body,
     },
     { onConflict: "ticket_id,slack_ts", ignoreDuplicates: true }
   );
