@@ -26,6 +26,8 @@ export async function updateTicket(formData: FormData) {
   const status = formData.get("status");
   const ownerRaw = String(formData.get("owner") ?? "").trim();
   const deadlineRaw = String(formData.get("deadline") ?? "");
+  const hasTitle = formData.has("title");
+  const titleRaw = String(formData.get("title") ?? "").trim();
 
   const updates: Record<string, string | null> = {};
 
@@ -37,6 +39,10 @@ export async function updateTicket(formData: FormData) {
 
   if (deadlineRaw === "") updates.deadline = null;
   else if (/^\d{4}-\d{2}-\d{2}$/.test(deadlineRaw)) updates.deadline = deadlineRaw;
+
+  if (hasTitle && titleRaw.length > 0 && titleRaw.length <= 300) {
+    updates.title = titleRaw;
+  }
 
   if (Object.keys(updates).length === 0) return;
 

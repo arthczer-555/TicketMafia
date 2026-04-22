@@ -166,10 +166,25 @@ function render(tokens: Token[], keyPrefix = ""): ReactNode {
   });
 }
 
+// Slack skin tones (":skin-tone-2:" … ":skin-tone-6:") map to Unicode
+// modifiers U+1F3FB..U+1F3FF. Placed right after a tonable emoji they combine
+// into a single toned glyph (👋 + 🏽 → 👋🏽).
+const SKIN_TONES: Record<string, string> = {
+  "2": "\u{1F3FB}",
+  "3": "\u{1F3FC}",
+  "4": "\u{1F3FD}",
+  "5": "\u{1F3FE}",
+  "6": "\u{1F3FF}",
+};
+
+function applySkinTones(text: string): string {
+  return text.replace(/:skin-tone-([2-6]):/g, (_, n: string) => SKIN_TONES[n] ?? "");
+}
+
 export function SlackText({ text }: { text: string }) {
   if (!text) return null;
   // Convert :shortcode: emoji to unicode (e.g. :rotating_light: → 🚨).
   // Unknown shortcodes (custom Slack emoji) are left as-is by node-emoji.
-  const emojified = emojify(text);
+  const emojified = applySkinTones(emojify(text));
   return <span className="whitespace-pre-wrap">{render(tokenize(emojified))}</span>;
 }

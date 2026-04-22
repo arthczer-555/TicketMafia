@@ -33,7 +33,7 @@ export function TicketEditor({ ticketId, status, owner, deadline, ownerOptions }
     owner && !ownerOptions.includes(owner) ? [...ownerOptions, owner] : ownerOptions;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="flex flex-col gap-3">
       <label className="block">
         <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
           Statut
