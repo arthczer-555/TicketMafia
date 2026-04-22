@@ -41,7 +41,7 @@ export type SlackEventEnvelope =
       event: SlackMessageEvent | SlackReactionEvent;
     };
 
-export type TicketCategory = "bugs" | "features";
+export type TicketCategory = "bugs" | "features" | "super_admin";
 export type TicketStatus = "todo" | "doing" | "waiting" | "done";
 
 // Emojis that drive status transitions.
@@ -54,5 +54,6 @@ export const STATUS_EMOJIS: Record<string, TicketStatus> = {
 export function categoryForChannel(channelId: string): TicketCategory | null {
   if (channelId === process.env.SLACK_CHANNEL_BUGS_ID) return "bugs";
   if (channelId === process.env.SLACK_CHANNEL_FEATURES_ID) return "features";
+  if (channelId === process.env.SLACK_CHANNEL_SUPER_ADMIN_ID) return "super_admin";
   return null;
 }

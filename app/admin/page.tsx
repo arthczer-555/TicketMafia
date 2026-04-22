@@ -10,7 +10,16 @@ export const dynamic = "force-dynamic";
 const CATEGORY_LABEL: Record<TicketCategory, string> = {
   bugs: "Bugs",
   features: "Features",
+  super_admin: "Super-admin",
 };
+
+const CATEGORY_COLOR: Record<TicketCategory, { bg: string; chip: string }> = {
+  bugs: { bg: "#ef4444", chip: "bg-red-500" },
+  features: { bg: "#8b5cf6", chip: "bg-violet-500" },
+  super_admin: { bg: "#6366f1", chip: "bg-indigo-500" },
+};
+
+const CATEGORIES: TicketCategory[] = ["bugs", "features", "super_admin"];
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", {
@@ -69,39 +78,34 @@ function SectionCard({
 }
 
 function CategoryBar({ byCategory }: { byCategory: Record<TicketCategory, number> }) {
-  const total = byCategory.bugs + byCategory.features;
-  const bugsPct = total === 0 ? 0 : (byCategory.bugs / total) * 100;
+  const total = CATEGORIES.reduce((n, c) => n + byCategory[c], 0);
+
   return (
     <div>
       <div className="mb-2 flex h-6 overflow-hidden rounded bg-slate-100">
-        {total > 0 && (
-          <>
-            <div
-              className="flex items-center justify-center text-[10px] font-medium text-white"
-              style={{ width: `${bugsPct}%`, backgroundColor: "#ef4444" }}
-            >
-              {bugsPct > 12 && `${Math.round(bugsPct)}%`}
-            </div>
-            <div
-              className="flex flex-1 items-center justify-center text-[10px] font-medium text-white"
-              style={{ backgroundColor: "#8b5cf6" }}
-            >
-              {100 - bugsPct > 12 && `${Math.round(100 - bugsPct)}%`}
-            </div>
-          </>
-        )}
+        {total > 0 &&
+          CATEGORIES.map((c) => {
+            const pct = (byCategory[c] / total) * 100;
+            if (pct === 0) return null;
+            return (
+              <div
+                key={c}
+                className="flex items-center justify-center text-[10px] font-medium text-white"
+                style={{ width: `${pct}%`, backgroundColor: CATEGORY_COLOR[c].bg }}
+              >
+                {pct > 12 && `${Math.round(pct)}%`}
+              </div>
+            );
+          })}
       </div>
-      <div className="flex justify-between text-xs">
-        <span className="flex items-center gap-1.5 text-slate-600">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500" />
-          {CATEGORY_LABEL.bugs}
-          <span className="tabular-nums font-medium text-slate-900">{byCategory.bugs}</span>
-        </span>
-        <span className="flex items-center gap-1.5 text-slate-600">
-          <span className="tabular-nums font-medium text-slate-900">{byCategory.features}</span>
-          {CATEGORY_LABEL.features}
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-violet-500" />
-        </span>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        {CATEGORIES.map((c) => (
+          <span key={c} className="flex items-center gap-1.5 text-slate-600">
+            <span className={`inline-block h-2.5 w-2.5 rounded-sm ${CATEGORY_COLOR[c].chip}`} />
+            {CATEGORY_LABEL[c]}
+            <span className="tabular-nums font-medium text-slate-900">{byCategory[c]}</span>
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -291,8 +295,11 @@ export default async function AdminPage() {
                     {STATUS_LABEL[s]}
                   </th>
                 ))}
-                <th className="px-3 py-2 text-center font-medium">Bugs</th>
-                <th className="px-3 py-2 text-center font-medium">Features</th>
+                {CATEGORIES.map((c) => (
+                  <th key={c} className="px-3 py-2 text-center font-medium">
+                    {CATEGORY_LABEL[c]}
+                  </th>
+                ))}
                 <th className="px-3 py-2 text-center font-medium">En retard</th>
                 <th className="px-3 py-2 text-left font-medium">Complétion</th>
               </tr>
@@ -311,8 +318,9 @@ export default async function AdminPage() {
                   {STATUS_ORDER.map((s) => (
                     <NumCell key={s} n={r.byStatus[s]} />
                   ))}
-                  <NumCell n={r.byCategory.bugs} />
-                  <NumCell n={r.byCategory.features} />
+                  {CATEGORIES.map((c) => (
+                    <NumCell key={c} n={r.byCategory[c]} />
+                  ))}
                   <td
                     className={`px-3 py-2 text-center tabular-nums ${
                       r.overdue > 0 ? "font-medium text-red-600" : "text-slate-300"

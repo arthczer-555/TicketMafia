@@ -6,6 +6,7 @@ import {
   categoryForChannel,
   type SlackMessageEvent,
   type SlackReactionEvent,
+  type TicketCategory,
   type TicketStatus,
 } from "./types";
 
@@ -51,7 +52,7 @@ export async function handleMessageEvent(event: SlackMessageEvent): Promise<void
 
 async function ingestTopLevelMessage(
   event: SlackMessageEvent,
-  category: "bugs" | "features"
+  category: TicketCategory
 ): Promise<void> {
   const rawText = event.text ?? "";
   const supabase = createServiceClient();

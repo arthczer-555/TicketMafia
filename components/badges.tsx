@@ -29,11 +29,13 @@ export function StatusBadge({ status }: { status: TicketStatus }) {
 const CATEGORY_LABEL: Record<TicketCategory, string> = {
   bugs: "Bug",
   features: "Feature",
+  super_admin: "Super-admin",
 };
 
 const CATEGORY_CLASS: Record<TicketCategory, string> = {
   bugs: "bg-red-50 text-red-700 border-red-200",
   features: "bg-violet-50 text-violet-700 border-violet-200",
+  super_admin: "bg-indigo-50 text-indigo-700 border-indigo-200",
 };
 
 export function CategoryBadge({ category }: { category: TicketCategory }) {

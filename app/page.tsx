@@ -9,7 +9,10 @@ const CATEGORY_FILTERS: { key: "all" | TicketCategory; label: string }[] = [
   { key: "all", label: "Tous" },
   { key: "bugs", label: "Bugs" },
   { key: "features", label: "Features" },
+  { key: "super_admin", label: "Super-admin" },
 ];
+
+const VALID_CATEGORIES: TicketCategory[] = ["bugs", "features", "super_admin"];
 
 export default async function HomePage({
   searchParams,
@@ -18,7 +21,9 @@ export default async function HomePage({
 }) {
   const { category: categoryParam } = await searchParams;
   const category: "all" | TicketCategory =
-    categoryParam === "bugs" || categoryParam === "features" ? categoryParam : "all";
+    VALID_CATEGORIES.includes(categoryParam as TicketCategory)
+      ? (categoryParam as TicketCategory)
+      : "all";
 
   const tickets = await listTickets({ category });
   const counts: Record<TicketStatus, number> = { todo: 0, doing: 0, waiting: 0, done: 0 };
@@ -61,9 +66,11 @@ export default async function HomePage({
       {tickets.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
           <p className="text-slate-600">
-            Aucun ticket pour le moment. Envoie un message dans
-            {" #00-bugs-and-changes "}
-            ou{" #01-features-and-ideation "}
+            Aucun ticket pour le moment. Envoie un message dans{" "}
+            <code className="rounded bg-slate-100 px-1">#00-bugs-and-changes</code>,{" "}
+            <code className="rounded bg-slate-100 px-1">#01-features-and-ideation</code>{" "}
+            ou{" "}
+            <code className="rounded bg-slate-100 px-1">#super-admin-dashboards</code>{" "}
             pour en créer.
           </p>
         </div>

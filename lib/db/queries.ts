@@ -162,7 +162,7 @@ function emptyStatus(): Record<TicketStatus, number> {
 }
 
 function emptyCategory(): Record<TicketCategory, number> {
-  return { bugs: 0, features: 0 };
+  return { bugs: 0, features: 0, super_admin: 0 };
 }
 
 function startOfWeekUTC(d: Date): Date {

@@ -1,6 +1,6 @@
 # TicketMafia
 
-Outil interne de ticketing pour Coachello, branché sur Slack. Chaque message dans `#00-bugs-and-changes` ou `#01-features-and-ideation` devient un ticket avec statut, owner, deadline, photos et conversation.
+Outil interne de ticketing pour Coachello, branché sur Slack. Chaque message dans `#00-bugs-and-changes`, `#01-features-and-ideation` ou `#super-admin-dashboards` devient un ticket avec statut, owner, deadline, photos et conversation.
 
 ## Stack
 
@@ -59,6 +59,7 @@ SLACK_SIGNING_SECRET=
 SLACK_BOT_TOKEN=
 SLACK_CHANNEL_BUGS_ID=
 SLACK_CHANNEL_FEATURES_ID=
+SLACK_CHANNEL_SUPER_ADMIN_ID=
 ```
 
 ### Migrations Supabase
@@ -66,6 +67,7 @@ SLACK_CHANNEL_FEATURES_ID=
 Lancer dans l'ordre dans le SQL Editor Supabase :
 1. [supabase/migrations/001_init.sql](supabase/migrations/001_init.sql) — tables `tickets`, `ticket_attachments`, `ticket_comments`, `ticket_reactions`
 2. [supabase/migrations/002_owners.sql](supabase/migrations/002_owners.sql) — table `owners` (devs assignables)
+3. [supabase/migrations/003_super_admin_category.sql](supabase/migrations/003_super_admin_category.sql) — ajoute `super_admin` à l'enum `ticket_category`
 
 ### Slack App
 
@@ -75,7 +77,7 @@ Scopes requis (Bot Token Scopes) :
 Event Subscriptions :
 - `message.channels`, `reaction_added`, `reaction_removed`
 
-Le bot doit être membre des deux channels (`/invite @bot-name` dans chaque).
+Le bot doit être membre des trois channels (`/invite @bot-name` dans chaque).
 
 ## Déploiement Netlify
 
